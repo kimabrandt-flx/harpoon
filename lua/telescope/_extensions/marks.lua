@@ -8,7 +8,6 @@ local make_entry = require("telescope.make_entry")
 local pickers = require("telescope.pickers")
 local entry_display = require("telescope.pickers.entry_display")
 local utils = require("telescope.utils")
-local sorters = require("telescope.sorters")
 local strings = require("plenary.strings")
 
 local function make_results(list)

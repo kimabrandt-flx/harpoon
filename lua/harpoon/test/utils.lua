@@ -77,7 +77,7 @@ function M.fill_list_with_files(count, list)
         local name = os.tmpname()
         table.insert(files, name)
         M.create_file(name, { "test" })
-        list:append()
+        list:add()
     end
 
     return files

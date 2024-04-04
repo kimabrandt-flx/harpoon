@@ -67,6 +67,7 @@ return {
     builtins = Builtins,
     extensions = extensions,
     event_names = {
+        REPLACE = "REPLACE",
         ADD = "ADD",
         SELECT = "SELECT",
         REMOVE = "REMOVE",

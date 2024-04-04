@@ -139,6 +139,11 @@ function M.get_default_config()
             ---@param list_item_a HarpoonListItem
             ---@param list_item_b HarpoonListItem
             equals = function(list_item_a, list_item_b)
+                if list_item_a == nil and list_item_b == nil then
+                    return true
+                elseif list_item_a == nil or list_item_b == nil then
+                    return false
+                end
                 return list_item_a.value == list_item_b.value
             end,
 
@@ -208,7 +213,7 @@ function M.get_default_config()
     }
 end
 
----@param partial_config HarpoonPartialConfig
+---@param partial_config HarpoonPartialConfig?
 ---@param latest_config HarpoonConfig?
 ---@return HarpoonConfig
 function M.merge_config(partial_config, latest_config)

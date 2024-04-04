@@ -185,8 +185,16 @@ end
 
 function HarpoonUI:save()
     local list = Buffer.get_contents(self.bufnr)
+    local length = #list
+    for i, v in ipairs(list) do
+        if v == "" then
+            list[i] = nil
+        end
+    end
+
     Logger:log("ui#save", list)
-    self.active_list:resolve_displayed(list)
+    print("saving", vim.inspect(list))
+    self.active_list:resolve_displayed(list, length)
     if self.settings.sync_on_ui_close then
         require("harpoon"):sync()
     end

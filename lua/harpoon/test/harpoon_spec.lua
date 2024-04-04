@@ -24,7 +24,7 @@ describe("harpoon", function()
             "qux",
         }, row, col)
 
-        local list = harpoon:list():append()
+        local list = harpoon:list():add()
         local other_buf = utils.create_file("other-file", {
             "foo",
             "bar",
@@ -56,7 +56,7 @@ describe("harpoon", function()
         }, row, col)
 
         local list = harpoon:list()
-        list:append()
+        list:add()
         harpoon:sync()
 
         eq(harpoon:dump(), {
@@ -66,7 +66,7 @@ describe("harpoon", function()
         })
     end)
 
-    it("prepend/append double add", function()
+    it("prepend/add double add", function()
         local default_list_name = harpoon:info().default_list_name
         local file_name_1 = "/tmp/harpoon-test"
         local row_1 = 3
@@ -79,7 +79,7 @@ describe("harpoon", function()
         local contents = { "foo", "bar", "baz", "qux" }
 
         local bufnr_1 = utils.create_file(file_name_1, contents, row_1, col_1)
-        local list = harpoon:list():append()
+        local list = harpoon:list():add()
 
         utils.create_file(file_name_2, contents, row_2, col_2)
         harpoon:list():prepend()
@@ -97,7 +97,7 @@ describe("harpoon", function()
             { value = file_name_1, context = { row = row_1, col = col_1 } },
         })
 
-        harpoon:list():append()
+        harpoon:list():add()
         vim.api.nvim_set_current_buf(bufnr_1)
         harpoon:list():prepend()
 

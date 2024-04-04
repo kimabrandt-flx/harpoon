@@ -20,14 +20,14 @@ M.delete_mark_selections = function(prompt_bufnr)
         -- delete marks from multi-selection
         for i = #selections, 1, -1 do
             local selection = selections[i]
-            harpoon:list():removeAt(selection.index)
+            harpoon:list():remove_at(selection.index)
             count = count + 1
         end
     else
         -- delete marks from single-selection
         local selection = action_state.get_selected_entry()
         if selection ~= nil then
-            harpoon:list():removeAt(selection.index)
+            harpoon:list():remove_at(selection.index)
             count = count + 1
         else
             return 0

@@ -192,7 +192,7 @@ end
 function HarpoonList:remove_at(index)
     if self.items[index] then
         Logger:log(
-            "HarpoonList:removeAt",
+            "HarpoonList:remove_at",
             { item = self.items[index], index = index }
         )
         Extensions.extensions:emit(

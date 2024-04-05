@@ -1,4 +1,3 @@
-local utils = require("harpoon.utils")
 local HarpoonGroup = require("harpoon.autocmd")
 
 local M = {}
@@ -16,6 +15,7 @@ local function get_harpoon_menu_name()
 end
 
 function M.run_select_command()
+    ---@type Harpoon
     local harpoon = require("harpoon")
     harpoon.logger:log("select by keymap '<CR>'")
     harpoon.ui:select_menu_item()
@@ -89,9 +89,7 @@ function M.get_contents(bufnr)
     local indices = {}
 
     for _, line in pairs(lines) do
-        if not utils.is_white_space(line) then
-            table.insert(indices, line)
-        end
+        table.insert(indices, line)
     end
 
     return indices

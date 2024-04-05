@@ -74,7 +74,7 @@ local harpoon = require("harpoon")
 harpoon:setup()
 -- REQUIRED
 
-vim.keymap.set("n", "<leader>a", function() harpoon:list():append() end)
+vim.keymap.set("n", "<leader>a", function() harpoon:list():add() end)
 vim.keymap.set("n", "<C-e>", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end)
 
 vim.keymap.set("n", "<C-h>", function() harpoon:list():select(1) end)
@@ -89,7 +89,7 @@ vim.keymap.set("n", "<C-S-N>", function() harpoon:list():next() end)
 
 ### Telescope
 
-In order to use [Telescope](https://github.com/nvim-telescope/telescope.nvim) as a UI, 
+In order to use [Telescope](https://github.com/nvim-telescope/telescope.nvim) as a UI,
 make sure to add `telescope` to your dependencies and paste this following snippet into your configuration.
 
 ```lua
@@ -137,7 +137,7 @@ harpoon:setup({
     -- Setting up custom behavior for a list named "cmd"
     "cmd" = {
 
-        -- When you call list:append() this function is called and the return
+        -- When you call list:add() this function is called and the return
         -- value will be put in the list at the end.
         --
         -- which means same behavior for prepend except where in the list the
@@ -204,7 +204,7 @@ There is quite a bit of behavior you can configure via `harpoon:setup()`
 * `display`: how to display the list item in the ui menu
 * `select`: the action taken when selecting a list item. called from `list:select(idx, options)`
 * `equals`: how to compare two list items for equality
-* `create_list_item`: called when `list:append()` or `list:prepend()` is called.  called with an item, which will be a string, when adding through the ui menu
+* `create_list_item`: called when `list:add()` or `list:prepend()` is called.  called with an item, which will be a string, when adding through the ui menu
 * `BufLeave`: this function is called for every list on BufLeave.  if you need custom behavior, this is the place
 * `VimLeavePre`: this function is called for every list on VimLeavePre.
 * `get_root_dir`: used for creating relative paths.  defaults to `vim.loop.cwd()`
@@ -287,7 +287,7 @@ contribute start with an issue and I am totally willing for PRs, but I will be
 very conservative on what I take.  I don't want Harpoon _solving_ specific
 issues, I want it to create the proper hooks to solve any problem
 
-**Running Tests**  
+**Running Tests**
 To run the tests make sure [plenary](https://github.com/nvim-lua/plenary.nvim) is checked out in the parent directory of *this* repository, then run `make test`.
 
 ## ⇁ Social

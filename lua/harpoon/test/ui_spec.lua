@@ -5,15 +5,6 @@ local harpoon = require("harpoon")
 local eq = assert.are.same
 local be = utils.before_each(os.tmpname())
 
----@param k string
-local function key(k)
-    vim.api.nvim_feedkeys(
-        vim.api.nvim_replace_termcodes(k, true, false, true),
-        "x",
-        true
-    )
-end
-
 describe("harpoon", function()
     before_each(function()
         be()
@@ -81,6 +72,35 @@ describe("harpoon", function()
         eq(created_files, list:display())
     end)
 
+    it("ui with replace_at", function()
+        local one_f = os.tmpname()
+        local one = utils.create_file(one_f, { "one" })
+        local three_f = os.tmpname()
+        local three = utils.create_file(three_f, { "three" })
+        local context = { row = 1, col = 0 }
+
+        eq(0, harpoon:list():length())
+        vim.api.nvim_set_current_buf(three)
+
+        harpoon:list():replace_at(3)
+        eq(3, harpoon:list():length())
+
+        vim.api.nvim_set_current_buf(one)
+        harpoon:list():replace_at(1)
+        eq(3, harpoon:list():length())
+
+        harpoon.ui:toggle_quick_menu(harpoon:list())
+
+        utils.key("<CR>")
+
+        eq(3, harpoon:list():length())
+        eq({
+            { value = one_f, context = context },
+            nil,
+            { value = three_f, context = context },
+        }, harpoon:list().items)
+    end)
+
     it("using :q to leave harpoon should quit everything", function()
         harpoon.ui:toggle_quick_menu(harpoon:list())
 
@@ -126,7 +146,7 @@ describe("harpoon", function()
         eq(vim.api.nvim_win_is_valid(win_id), true)
         eq(vim.api.nvim_get_current_buf(), bufnr)
 
-        key("<C-w><C-w>")
+        utils.key("<C-w><C-w>")
 
         eq(vim.api.nvim_buf_is_valid(bufnr), false)
         eq(vim.api.nvim_win_is_valid(win_id), false)
@@ -144,7 +164,7 @@ describe("harpoon", function()
         eq(vim.api.nvim_win_is_valid(win_id), true)
         eq(vim.api.nvim_get_current_buf(), bufnr)
 
-        key("q")
+        utils.key("q")
 
         eq(vim.api.nvim_buf_is_valid(bufnr), false)
         eq(vim.api.nvim_win_is_valid(win_id), false)
@@ -162,7 +182,7 @@ describe("harpoon", function()
         eq(vim.api.nvim_win_is_valid(win_id), true)
         eq(vim.api.nvim_get_current_buf(), bufnr)
 
-        key("<Esc>")
+        utils.key("<Esc>")
 
         eq(vim.api.nvim_buf_is_valid(bufnr), false)
         eq(vim.api.nvim_win_is_valid(win_id), false)

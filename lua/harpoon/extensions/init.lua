@@ -12,6 +12,7 @@ local HarpoonExtensions = {}
 ---@field LIST_CREATED? fun(...): nil
 ---@field LIST_READ? fun(...): nil
 ---@field NAVIGATE? fun(...): nil
+---@field POSITION_UPDATED? fun(...): nil
 
 HarpoonExtensions.__index = HarpoonExtensions
 
@@ -67,9 +68,17 @@ return {
     builtins = Builtins,
     extensions = extensions,
     event_names = {
+        REPLACE = "REPLACE",
         ADD = "ADD",
         SELECT = "SELECT",
         REMOVE = "REMOVE",
+        POSITION_UPDATED = "POSITION_UPDATED",
+
+        --- This exists because the ui can change the list in dramatic ways
+        --- so instead of emitting a REMOVE, then an ADD, then a REORDER, we
+        --- instead just emit LIST_CHANGE
+        LIST_CHANGE = "LIST_CHANGE",
+
         REORDER = "REORDER",
         UI_CREATE = "UI_CREATE",
         SETUP_CALLED = "SETUP_CALLED",

@@ -18,19 +18,37 @@ local Harpoon = {}
 
 Harpoon.__index = Harpoon
 
+---@param harpoon Harpoon
+local function sync_on_change(harpoon)
+    local function sync(_)
+        return function()
+            harpoon:sync()
+        end
+    end
+
+    Extensions.extensions:add_listener({
+        ADD = sync("ADD"),
+        REMOVE = sync("REMOVE"),
+        REORDER = sync("REORDER"),
+        LIST_CHANGE = sync("LIST_CHANGE"),
+        POSITION_UPDATED = sync("POSITION_UPDATED"),
+    })
+end
+
 ---@return Harpoon
 function Harpoon:new()
     local config = Config.get_default_config()
 
     local harpoon = setmetatable({
         config = config,
-        data = Data.Data:new(),
+        data = Data.Data:new(config),
         logger = Log,
         ui = Ui:new(config.settings),
         _extensions = Extensions.extensions,
         lists = {},
         hooks_setup = false,
     }, self)
+    sync_on_change(harpoon)
 
     return harpoon
 end
@@ -51,10 +69,6 @@ function Harpoon:list(name)
     local existing_list = lists[name]
 
     if existing_list then
-        if not self.data.seen[key] then
-            self.data.seen[key] = {}
-        end
-        self.data.seen[key][name] = true
         self._extensions:emit(Extensions.event_names.LIST_READ, existing_list)
         return existing_list
     end
@@ -72,16 +86,14 @@ end
 ---@param cb fun(list: HarpoonList, config: HarpoonPartialConfigItem, name: string)
 function Harpoon:_for_each_list(cb)
     local key = self.config.settings.key()
-    local seen = self.data.seen[key]
     local lists = self.lists[key]
-
-    if not seen then
+    if not lists then
         return
     end
 
-    for list_name, _ in pairs(seen) do
-        local list_config = Config.get_config(self.config, list_name)
-        cb(lists[list_name], list_config, list_name)
+    for name, list in pairs(lists) do
+        local list_config = Config.get_config(self.config, name)
+        cb(list, list_config, name)
     end
 end
 
@@ -123,7 +135,7 @@ end
 local the_harpoon = Harpoon:new()
 
 ---@param self Harpoon
----@param partial_config HarpoonPartialConfig
+---@param partial_config HarpoonPartialConfig?
 ---@return Harpoon
 function Harpoon.setup(self, partial_config)
     if self ~= the_harpoon then

@@ -251,6 +251,25 @@ describe("list", function()
             { value = "threethree" },
             { value = "four" },
         }, list.items)
+
+        list:replace_at(2, { value = "one" })
+        eq(4, list:length())
+        eq({
+            nil,
+            { value = "one" },
+            { value = "threethree" },
+            { value = "four" },
+        }, list.items)
+
+        list:replace_at(5, { value = "one" })
+        eq(5, list:length())
+        eq({
+            nil,
+            nil,
+            { value = "threethree" },
+            { value = "four" },
+            { value = "one" },
+        }, list.items)
     end)
 
     it("resolve_displayed", function()

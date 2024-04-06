@@ -297,7 +297,7 @@ function HarpoonList:next(opts)
 
     self._index = self._index + 1
     if self._index > self._length then
-        if opts.ui_nav_wrap then
+        if opts.ui_nav_wrap ~= false then
             self._index = 1
         else
             self._index = self._length
@@ -314,7 +314,7 @@ function HarpoonList:prev(opts)
 
     self._index = self._index - 1
     if self._index < 1 then
-        if opts.ui_nav_wrap then
+        if opts.ui_nav_wrap ~= false then
             self._index = #self.items
         else
             self._index = 1

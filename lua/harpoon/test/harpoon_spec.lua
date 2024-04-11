@@ -122,6 +122,31 @@ describe("harpoon", function()
         })
     end)
 
+    it("should ignore removed items", function()
+        local list = harpoon:list()
+
+        utils.create_file("/tmp/harpoon-test1", {}, 1, 0)
+        list:add()
+
+        utils.create_file("/tmp/harpoon-test2", {}, 1, 0)
+        list:add()
+
+        utils.create_file("/tmp/harpoon-test3", {}, 1, 0)
+        list:add()
+
+        list:remove_at(2) -- remove the second item
+
+        local count_items = 0
+        local encoded_items = list:encode()
+        local i, _ = next(encoded_items, nil)
+        while i do
+            count_items = count_items + 1
+            i, _ = next(encoded_items, i)
+        end
+
+        eq(2, count_items, "expecting two items in the list")
+    end)
+
     it("out of bounds test: row over", function()
         out_of_bounds_test({
             row = 5,

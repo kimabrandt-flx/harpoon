@@ -344,8 +344,11 @@ end
 --- @return string[]
 function HarpoonList:encode()
     local out = {}
-    for _, v in ipairs(self.items) do
-        table.insert(out, self.config.encode(v))
+    local items = self.items
+    local i, v = next(items, nil)
+    while i do
+        out[i] = self.config.encode(v)
+        i, v = next(items, i)
     end
 
     return out
@@ -358,8 +361,14 @@ end
 function HarpoonList.decode(list_config, name, items)
     local list_items = {}
 
-    for _, item in ipairs(items) do
-        table.insert(list_items, list_config.decode(item))
+    local i, item = next(items, nil)
+    while i do
+        if item == vim.NIL then
+            list_items[i] = nil -- allow nil-values
+        else
+            list_items[i] = list_config.decode(item)
+        end
+        i, item = next(items, i)
     end
 
     return HarpoonList:new(list_config, name, list_items)

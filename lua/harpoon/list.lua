@@ -1,4 +1,5 @@
 local Logger = require("harpoon.logger")
+local Path = require("plenary.path")
 local utils = require("harpoon.utils")
 local Extensions = require("harpoon.extensions")
 
@@ -77,16 +78,51 @@ end
 --- @field items HarpoonItem[]
 local HarpoonList = {}
 
+---@param list HarpoonList
+---@param options any
+local sync_index = function(list, options)
+    local bufnr = options.bufnr
+    local filename = options.filename
+    local index = options.index
+    if bufnr ~= nil and filename ~= nil then
+        local config = list.config
+        local relname = Path:new(filename):make_relative(config.get_root_dir())
+        if bufnr == vim.fn.bufnr(relname, false) then
+            local element = config.create_list_item(config, relname)
+            local index_found = index_of(list.items, list._length, element, config)
+            if index_found > -1 then
+                list._index = index_found
+            -- elseif index then
+            --     list._index = index
+            end
+        elseif index ~= nil then
+            list._index = index
+        end
+    elseif (index ~= nil) then
+        list._index = index
+    end
+end
+
 HarpoonList.__index = HarpoonList
 function HarpoonList:new(config, name, items)
     items = items or {}
-    return setmetatable({
+    local list = setmetatable({
         items = items,
         config = config,
         name = name,
         _length = guess_length(items),
-        _index = 1,
+        _index = 0,
     }, self)
+    vim.api.nvim_create_autocmd({ "BufEnter" }, {
+        pattern = { "*" },
+        callback = function (args)
+            sync_index(list, {
+                bufnr = args.buf,
+                filename = args.file
+            })
+        end,
+    })
+    return list
 end
 
 ---@return number
@@ -151,6 +187,8 @@ function HarpoonList:add(item)
             self._length = idx
         end
 
+        sync_index(self, { index = idx })
+
         Extensions.extensions:emit(
             Extensions.event_names.ADD,
             { list = self, item = item, idx = idx }
@@ -170,6 +208,8 @@ function HarpoonList:prepend(item)
         if stop_idx > self._length then
             self._length = stop_idx
         end
+
+        sync_index(self, { index = 1 })
 
         Extensions.extensions:emit(
             Extensions.event_names.ADD,
@@ -191,6 +231,14 @@ function HarpoonList:remove(item)
             if i == self._length then
                 self._length = determine_length(self.items, self._length)
             end
+
+            local current_buffer = vim.api.nvim_get_current_buf()
+            sync_index(self, {
+                bufnr = current_buffer,
+                filename = vim.api.nvim_buf_get_name(current_buffer),
+                -- index = index <= self._index and self._index - 1 or self._index,
+            })
+
             Extensions.extensions:emit(
                 Extensions.event_names.REMOVE,
                 { list = self, item = item, idx = i }
@@ -212,6 +260,14 @@ function HarpoonList:remove_at(index)
         if index == self._length then
             self._length = determine_length(self.items, self._length)
         end
+
+        local current_buffer = vim.api.nvim_get_current_buf()
+        sync_index(self, {
+            bufnr = current_buffer,
+            filename = vim.api.nvim_buf_get_name(current_buffer),
+            -- index = index <= self._index and self._index - 1 or self._index,
+        })
+
         Extensions.extensions:emit(
             Extensions.event_names.REMOVE,
             { list = self, item = self.items[index], idx = index }
@@ -242,7 +298,10 @@ end
 --- much inefficiencies.  dun care
 ---@param displayed string[]
 ---@param length number
-function HarpoonList:resolve_displayed(displayed, length)
+---@param options any
+function HarpoonList:resolve_displayed(displayed, length, options)
+    options = options or {}
+
     local new_list = {}
 
     local list_displayed = self:display()
@@ -278,6 +337,12 @@ function HarpoonList:resolve_displayed(displayed, length)
         end
     end
 
+    local win_id = options.win_id
+    if win_id then
+        local pos = vim.api.nvim_win_get_cursor(win_id)
+        self._index = pos[1]
+    end
+
     self.items = new_list
     self._length = length
     if change > 0 then
@@ -288,6 +353,8 @@ end
 function HarpoonList:select(index, options)
     local item = self.items[index]
     if item or self.config.select_with_nil then
+        sync_index(self, { index = index })
+
         Extensions.extensions:emit(
             Extensions.event_names.SELECT,
             { list = self, item = item, idx = index }

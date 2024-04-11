@@ -153,6 +153,12 @@ function HarpoonUI:toggle_quick_menu(list, opts)
     local contents = self.active_list:display()
     vim.api.nvim_buf_set_lines(self.bufnr, 0, -1, false, contents)
 
+    local index = list._index
+
+    if index > 0 then
+        vim.api.nvim_win_set_cursor(win_id, {index, 0})
+    end
+
     Extensions.extensions:emit(Extensions.event_names.UI_CREATE, {
         win_id = win_id,
         bufnr = bufnr,
@@ -173,7 +179,7 @@ function HarpoonUI:select_menu_item(options)
     -- must first save any updates potentially made to the list before
     -- navigating
     local list, length = self:_get_processed_ui_contents()
-    self.active_list:resolve_displayed(list, length)
+    self.active_list:resolve_displayed(list, length, { win_id = self.win_id })
 
     Logger:log(
         "ui#select_menu_item selecting item",
@@ -193,7 +199,7 @@ function HarpoonUI:save()
     local list, length = self:_get_processed_ui_contents()
 
     Logger:log("ui#save", list)
-    self.active_list:resolve_displayed(list, length)
+    self.active_list:resolve_displayed(list, length, { win_id = self.win_id })
     if self.settings.sync_on_ui_close then
         require("harpoon"):sync()
     end

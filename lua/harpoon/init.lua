@@ -37,8 +37,12 @@ end
 
 ---@return Harpoon
 function Harpoon:new()
+    local config = Config.get_default_config()
+
     local harpoon = setmetatable({
+        config = config,
         logger = Log,
+        ui = Ui:new(config.settings),
         _extensions = Extensions.extensions,
         lists = {},
         hooks_setup = false,
@@ -139,9 +143,8 @@ function Harpoon.setup(self, partial_config)
     end
 
     ---@diagnostic disable-next-line: param-type-mismatch
-    self.config = Config.merge_config(partial_config, Config.get_default_config())
+    self.config = Config.merge_config(partial_config, self.config)
     self.data = Data.Data:new(self.config)
-    self.ui = Ui:new(self.config.settings)
     self.ui:configure(self.config.settings)
     self._extensions:emit(Extensions.event_names.SETUP_CALLED, self.config)
     sync_on_change(the_harpoon)

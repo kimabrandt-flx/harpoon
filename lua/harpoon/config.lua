@@ -114,7 +114,17 @@ function M.get_default_config()
                     bufnr = vim.fn.bufadd(list_item.value)
                 end
                 if not vim.api.nvim_buf_is_loaded(bufnr) then
-                    vim.fn.bufload(bufnr)
+                    local abort = false
+                    xpcall(vim.api.nvim_command, function(e)
+                        if e == "Vim(buffer):E325: ATTENTION" then -- recover or quit
+                            abort = true
+                        elseif e == "Keyboard interrupt" then -- abort
+                            abort = true
+                        end
+                    end, string.format("%s %d", "buffer", bufnr))
+                    if abort == true then
+                        return
+                    end
                     vim.api.nvim_set_option_value("buflisted", true, {
                         buf = bufnr,
                     })

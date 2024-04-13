@@ -345,10 +345,11 @@ end
 function HarpoonList:encode()
     local out = {}
     local items = self.items
-    local i, v = next(items, nil)
-    while i do
-        out[i] = self.config.encode(v)
-        i, v = next(items, i)
+    for i = 1, self._length do
+        local item = items[i]
+        if item then
+            out[i] = self.config.encode(items[i])
+        end
     end
 
     return out
@@ -361,14 +362,13 @@ end
 function HarpoonList.decode(list_config, name, items)
     local list_items = {}
 
-    local i, item = next(items, nil)
-    while i do
+    for i = 1, #items do
+        local item = items[i]
         if item == vim.NIL then
             list_items[i] = nil -- allow nil-values
         else
             list_items[i] = list_config.decode(item)
         end
-        i, item = next(items, i)
     end
 
     return HarpoonList:new(list_config, name, list_items)

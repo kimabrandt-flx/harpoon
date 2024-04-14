@@ -156,7 +156,7 @@ function HarpoonUI:toggle_quick_menu(list, opts)
     local index = list._index
 
     if index > 0 then
-        vim.api.nvim_win_set_cursor(win_id, {index, 0})
+        vim.api.nvim_win_set_cursor(win_id, { index, 0 })
     end
 
     Extensions.extensions:emit(Extensions.event_names.UI_CREATE, {

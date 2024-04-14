@@ -4,20 +4,18 @@ local Path = require("plenary.path")
 local function normalize_path(buf_name, root)
     return Path:new(buf_name):make_relative(root)
 end
-local function to_exact_name(value)
-    return "^" .. value .. "$"
-end
 
 local M = {}
 local DEFAULT_LIST = "__harpoon_files"
 M.DEFAULT_LIST = DEFAULT_LIST
 
 ---@alias HarpoonListItem {value: any, context: any}
----@alias HarpoonListFileItem {value: string, context: {row: number, col: number}}
----@alias HarpoonListFileOptions {split: boolean, vsplit: boolean, tabedit: boolean}
+---@alias HarpoonListFileItem {value: string, context: {row: number, col: number}, meta: {bufnr: number}}
+---@alias HarpoonListFileOptions {split: boolean, vsplit: boolean, tabedit: boolean, open_file_command: string}
 
 ---@class HarpoonPartialConfigItem
 ---@field select_with_nil? boolean defaults to false
+---@field open_file_command? string defaults to "edit"
 ---@field encode? (fun(list_item: HarpoonListItem): string) | boolean
 ---@field decode? (fun(obj: string): any)
 ---@field display? (fun(list_item: HarpoonListItem): string)
@@ -53,6 +51,45 @@ function M.get_config(config, name)
     return vim.tbl_extend("force", {}, config.default, config[name] or {})
 end
 
+local edit_buffer
+do
+    local map = {
+        edit = "buffer",
+        new = "sbuffer",
+        vnew = "vert sbuffer",
+        tabedit = "tab sb",
+    }
+
+    edit_buffer = function(command, bufnr)
+        command = map[command]
+        if command == nil then
+            error("There was no associated buffer-command")
+        end
+
+        vim.cmd(string.format("%s %d", command, bufnr))
+    end
+end
+
+local edit_file
+do
+    local map = {
+        edit = "edit",
+        new = "new",
+        vnew = "vnew",
+        tabedit = "tabedit",
+    }
+
+    edit_file = function(command, filename)
+        command = map[command]
+        if command == nil then
+            error("There is no such open-command")
+        end
+
+        vim.cmd(string.format("%s %s", command, vim.fn.fnameescape(filename)))
+        return vim.fn.bufnr(filename)
+    end
+end
+
 ---@return HarpoonConfig
 function M.get_default_config()
     return {
@@ -71,10 +108,20 @@ function M.get_default_config()
             --- select_with_nill allows for a list to call select even if the provided item is nil
             select_with_nil = false,
 
+            -- the command to use to open a file
+            -- valid commands include: "edit", "new", "vnew", "tabedit"
+            open_file_command = "edit",
+
             ---@param obj HarpoonListItem
             ---@return string
             encode = function(obj)
-                return vim.json.encode(obj)
+                local tablecopy = {}
+                for k, v in pairs(obj) do
+                    if k ~= "meta" then -- ignore meta
+                        tablecopy[k] = v
+                    end
+                end
+                return vim.json.encode(tablecopy)
             end,
 
             ---@param str string
@@ -94,30 +141,91 @@ function M.get_default_config()
             ---@param list HarpoonList
             ---@param options HarpoonListFileOptions
             select = function(list_item, list, options)
+                options = options or {}
+
                 Logger:log(
                     "config_default#select",
                     list_item,
                     list.name,
                     options
                 )
+
                 if list_item == nil then
                     return
                 end
 
-                options = options or {}
-
-                local bufnr = vim.fn.bufnr(to_exact_name(list_item.value))
+                local command = options.open_file_command or list.config.open_file_command
+                local filename = list_item.value
+                local bufnr = -1
                 local set_position = false
-                if bufnr == -1 then -- must create a buffer!
-                    set_position = true
-                    -- bufnr = vim.fn.bufnr(list_item.value, true)
-                    bufnr = vim.fn.bufadd(list_item.value)
+
+                if list_item.meta then
+                    bufnr = list_item.meta.bufnr or -1
+                else
+                    list_item.meta = {
+                        bufnr = -1,
+                    }
                 end
-                if not vim.api.nvim_buf_is_loaded(bufnr) then
-                    vim.fn.bufload(bufnr)
-                    vim.api.nvim_set_option_value("buflisted", true, {
-                        buf = bufnr,
-                    })
+
+                if bufnr ~= -1 then -- switch buffer
+                    local ok, is_listed = pcall(vim.api.nvim_buf_get_option, bufnr, "buflisted")
+                    if not ok then
+                        bufnr = -1
+                    elseif not is_listed then
+                        vim.api.nvim_buf_set_option(bufnr, "buflisted", true)
+                    end
+                end
+
+                local abort = false
+                xpcall(function ()
+                    if bufnr ~= -1 then -- edit buffer
+                        edit_buffer(command, bufnr)
+                    else -- edit file
+                        set_position = true
+                        -- check if we didn't pick a different buffer
+                        -- prevents restarting lsp server
+                        if vim.api.nvim_buf_get_name(0) ~= filename or command ~= "edit" then
+                            bufnr = edit_file(command, filename)
+                            list_item.meta.bufnr = bufnr
+                        end
+                    end
+                end, function(e)
+                        if e == "Vim(buffer):E325: ATTENTION" then -- recover or quit
+                            abort = true
+                        elseif e == "Keyboard interrupt" then -- abort
+                            abort = true
+                        end
+                    end, string.format("%s %d", "buffer", bufnr))
+                if abort == true then
+                    return
+                end
+
+                -- HACK: fixes folding: https://github.com/nvim-telescope/telescope.nvim/issues/699
+                if vim.wo.foldmethod == "expr" then
+                    vim.schedule(function()
+                        vim.opt.foldmethod = "expr"
+                    end)
+                end
+
+                local row = list_item.context.row
+                local col = list_item.context.col
+
+                if col == nil then
+                    local pos = vim.api.nvim_win_get_cursor(0)
+                    if row == pos[1] then
+                        col = pos[2]
+                    elseif row == nil then
+                        row, col = pos[1], pos[2]
+                    else
+                        col = 0
+                    end
+                end
+
+                if set_position and row and col then
+                    local ok, err_msg = pcall(vim.api.nvim_win_set_cursor, 0, { row, col })
+                    if not ok then
+                        Logger:log("config_default#select failed to move to cursor:", err_msg, row, col)
+                    end
                 end
 
                 if options.vsplit then
@@ -128,41 +236,41 @@ function M.get_default_config()
                     vim.cmd("tabedit")
                 end
 
-                vim.api.nvim_set_current_buf(bufnr)
+                -- TODO merge this into the above
 
-                if set_position then
-                    local lines = vim.api.nvim_buf_line_count(bufnr)
-
-                    local edited = false
-                    if list_item.context.row > lines then
-                        list_item.context.row = lines
-                        edited = true
-                    end
-
-                    local row = list_item.context.row
-                    local row_text =
-                        vim.api.nvim_buf_get_lines(0, row - 1, row, false)
-                    local col = #row_text[1]
-
-                    if list_item.context.col > col then
-                        list_item.context.col = col
-                        edited = true
-                    end
-
-                    vim.api.nvim_win_set_cursor(0, {
-                        list_item.context.row or 1,
-                        list_item.context.col or 0,
-                    })
-
-                    if edited then
-                        Extensions.extensions:emit(
-                            Extensions.event_names.POSITION_UPDATED,
-                            {
-                                list_item = list_item,
-                            }
-                        )
-                    end
-                end
+                -- if set_position then
+                --     local lines = vim.api.nvim_buf_line_count(bufnr)
+                --
+                --     local edited = false
+                --     if list_item.context.row > lines then
+                --         list_item.context.row = lines
+                --         edited = true
+                --     end
+                --
+                --     local row = list_item.context.row
+                --     local row_text =
+                --         vim.api.nvim_buf_get_lines(0, row - 1, row, false)
+                --     local col = #row_text[1]
+                --
+                --     if list_item.context.col > col then
+                --         list_item.context.col = col
+                --         edited = true
+                --     end
+                --
+                --     vim.api.nvim_win_set_cursor(0, {
+                --         list_item.context.row or 1,
+                --         list_item.context.col or 0,
+                --     })
+                --
+                --     if edited then
+                --         Extensions.extensions:emit(
+                --             Extensions.event_names.POSITION_UPDATED,
+                --             {
+                --                 list_item = list_item,
+                --             }
+                --         )
+                --     end
+                -- end
 
                 Extensions.extensions:emit(Extensions.event_names.NAVIGATE, {
                     buffer = bufnr,
@@ -211,6 +319,9 @@ function M.get_default_config()
                     context = {
                         row = pos[1],
                         col = pos[2],
+                    },
+                    meta = {
+                        bufnr = bufnr,
                     },
                 }
             end,

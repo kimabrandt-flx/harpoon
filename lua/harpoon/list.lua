@@ -412,7 +412,7 @@ function HarpoonList:encode()
     for i = 1, self._length do
         local item = items[i]
         if item then
-            out[i] = self.config.encode(items[i])
+            out[i] = self.config.encode(item)
         end
     end
 

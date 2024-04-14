@@ -121,7 +121,11 @@ function M.get_default_config()
                         elseif e == "Keyboard interrupt" then -- abort
                             abort = true
                         end
-                    end, string.format("%s %d", "buffer", bufnr))
+                    end, string.format(
+                        "%s %d",
+                        "buffer",
+                        bufnr
+                    ))
                     if abort == true then
                         return
                     end

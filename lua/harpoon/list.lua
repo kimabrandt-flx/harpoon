@@ -89,16 +89,15 @@ local sync_index = function(list, options)
         local relname = Path:new(filename):make_relative(config.get_root_dir())
         if bufnr == vim.fn.bufnr(relname, false) then
             local element = config.create_list_item(config, relname)
-            local index_found = index_of(list.items, list._length, element, config)
+            local index_found =
+                index_of(list.items, list._length, element, config)
             if index_found > -1 then
                 list._index = index_found
-            -- elseif index then
-            --     list._index = index
             end
         elseif index ~= nil then
             list._index = index
         end
-    elseif (index ~= nil) then
+    elseif index ~= nil then
         list._index = index
     end
 end
@@ -115,10 +114,10 @@ function HarpoonList:new(config, name, items)
     }, self)
     vim.api.nvim_create_autocmd({ "BufEnter" }, {
         pattern = { "*" },
-        callback = function (args)
+        callback = function(args)
             sync_index(list, {
                 bufnr = args.buf,
-                filename = args.file
+                filename = args.file,
             })
         end,
     })
@@ -236,7 +235,6 @@ function HarpoonList:remove(item)
             sync_index(self, {
                 bufnr = current_buffer,
                 filename = vim.api.nvim_buf_get_name(current_buffer),
-                -- index = index <= self._index and self._index - 1 or self._index,
             })
 
             Extensions.extensions:emit(
@@ -265,7 +263,6 @@ function HarpoonList:remove_at(index)
         sync_index(self, {
             bufnr = current_buffer,
             filename = vim.api.nvim_buf_get_name(current_buffer),
-            -- index = index <= self._index and self._index - 1 or self._index,
         })
 
         Extensions.extensions:emit(
@@ -412,10 +409,11 @@ end
 function HarpoonList:encode()
     local out = {}
     local items = self.items
-    local i, v = next(items, nil)
-    while i do
-        out[i] = self.config.encode(v)
-        i, v = next(items, i)
+    for i = 1, self._length do
+        local item = items[i]
+        if item then
+            out[i] = self.config.encode(items[i])
+        end
     end
 
     return out
@@ -428,14 +426,13 @@ end
 function HarpoonList.decode(list_config, name, items)
     local list_items = {}
 
-    local i, item = next(items, nil)
-    while i do
+    for i = 1, #items do
+        local item = items[i]
         if item == vim.NIL then
             list_items[i] = nil -- allow nil-values
         else
             list_items[i] = list_config.decode(item)
         end
-        i, item = next(items, i)
     end
 
     return HarpoonList:new(list_config, name, list_items)

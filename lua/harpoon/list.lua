@@ -277,14 +277,29 @@ function HarpoonList:get(index)
     return self.items[index]
 end
 
+-- function HarpoonList:get_by_display(name)
+--     local displayed = self:display()
+--     local index = index_of(displayed, #displayed, name)
+--     if index == -1 then
+--         return nil
+--     end
+--     return self.items[index], index
+-- end
+local equals = function(element, item)
+    if item == nil then
+        return false
+    end
+    return element == item.value
+end
 function HarpoonList:get_by_value(value)
     local index = index_of(self.items, self._length, value, {
-        equals = function(element, item)
-            if item == nil then
-                return false
-            end
-            return element == item.value
-        end,
+        -- equals = equals,
+        -- equals = function(element, item)
+        --     if item == nil then
+        --         return false
+        --     end
+        --     return element == item.value
+        -- end,
     })
     if index == -1 then
         return nil

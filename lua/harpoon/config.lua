@@ -149,7 +149,7 @@ function M.get_default_config()
                     options
                 )
 
-                if list_item == nil then
+                if not list_item then
                     return
                 end
 
@@ -181,13 +181,13 @@ function M.get_default_config()
                     if bufnr ~= -1 then -- edit buffer
                         edit_buffer(command, bufnr)
                     else -- edit file
-                        set_position = true
                         -- check if we didn't pick a different buffer
                         -- prevents restarting lsp server
                         if vim.api.nvim_buf_get_name(0) ~= filename or command ~= "edit" then
                             edit_file(command, filename)
-                            bufnr = vim.fn.bufnr(filename)
+                            bufnr = vim.fn.bufnr(filename, false)
                             if vim.fn.bufexists(bufnr) then
+                                set_position = true
                                 list_item.meta.bufnr = bufnr
                             else
                                 list_item.meta.bufnr = -1
@@ -195,89 +195,68 @@ function M.get_default_config()
                         end
                     end
                 end, function()
-                        bufnr = vim.fn.bufnr(filename)
-                        if vim.fn.bufexists(bufnr) then
+                        bufnr = vim.fn.bufnr(filename, false)
+                        if vim.fn.bufexists(bufnr) and vim.api.nvim_buf_is_loaded(bufnr) then
+                            set_position = true
                             list_item.meta.bufnr = bufnr
                         else
                             list_item.meta.bufnr = -1
                         end
                     end)
 
-                -- HACK: fixes folding: https://github.com/nvim-telescope/telescope.nvim/issues/699
-                if vim.wo.foldmethod == "expr" then
-                    vim.schedule(function()
-                        vim.opt.foldmethod = "expr"
-                    end)
-                end
+                if set_position then
+                    -- HACK: fixes folding: https://github.com/nvim-telescope/telescope.nvim/issues/699
+                    if vim.wo.foldmethod == "expr" then
+                        vim.schedule(function()
+                            vim.opt.foldmethod = "expr"
+                        end)
+                    end
 
-                local row = list_item.context.row
-                local col = list_item.context.col
+                    if options.vsplit then
+                        vim.cmd("vsplit")
+                    elseif options.split then
+                        vim.cmd("split")
+                    elseif options.tabedit then
+                        vim.cmd("tabedit")
+                    end
 
-                if col == nil then
-                    local pos = vim.api.nvim_win_get_cursor(0)
-                    if row == pos[1] then
-                        col = pos[2]
-                    elseif row == nil then
-                        row, col = pos[1], pos[2]
-                    else
-                        col = 0
+                    local lines = vim.api.nvim_buf_line_count(bufnr)
+
+                    local edited = false
+                    if list_item.context.row > lines then
+                        list_item.context.row = lines
+                        edited = true
+                    end
+
+                    local row = list_item.context.row
+                    local row_text = vim.api.nvim_buf_get_lines(0, row - 1, row, false)
+                    local col = #row_text[1]
+
+                    if list_item.context.col > col then
+                        list_item.context.col = col
+                        edited = true
+                    end
+
+                    vim.api.nvim_win_set_cursor(0, {
+                        list_item.context.row or 1,
+                        list_item.context.col or 0,
+                    })
+
+                    if edited then
+                        Extensions.extensions:emit(
+                            Extensions.event_names.POSITION_UPDATED,
+                            {
+                                list_item = list_item,
+                            }
+                        )
                     end
                 end
 
-                if set_position and row and col then
-                    local ok, err_msg = pcall(vim.api.nvim_win_set_cursor, 0, { row, col })
-                    if not ok then
-                        Logger:log("config_default#select failed to move to cursor:", err_msg, row, col)
-                    end
+                if list_item.meta.bufnr > -1 then
+                    Extensions.extensions:emit(Extensions.event_names.NAVIGATE, {
+                        buffer = list_item.meta.bufnr,
+                    })
                 end
-
-                if options.vsplit then
-                    vim.cmd("vsplit")
-                elseif options.split then
-                    vim.cmd("split")
-                elseif options.tabedit then
-                    vim.cmd("tabedit")
-                end
-
-                -- TODO merge this into the above
-
-                -- if set_position then
-                --     local lines = vim.api.nvim_buf_line_count(bufnr)
-                --
-                --     local edited = false
-                --     if list_item.context.row > lines then
-                --         list_item.context.row = lines
-                --         edited = true
-                --     end
-                --
-                --     local row = list_item.context.row
-                --     local row_text =
-                --         vim.api.nvim_buf_get_lines(0, row - 1, row, false)
-                --     local col = #row_text[1]
-                --
-                --     if list_item.context.col > col then
-                --         list_item.context.col = col
-                --         edited = true
-                --     end
-                --
-                --     vim.api.nvim_win_set_cursor(0, {
-                --         list_item.context.row or 1,
-                --         list_item.context.col or 0,
-                --     })
-                --
-                --     if edited then
-                --         Extensions.extensions:emit(
-                --             Extensions.event_names.POSITION_UPDATED,
-                --             {
-                --                 list_item = list_item,
-                --             }
-                --         )
-                --     end
-                -- end
-
-                Extensions.extensions:emit(Extensions.event_names.NAVIGATE, {
-                    buffer = bufnr,
-                })
             end,
 
             ---@param list_item_a HarpoonListItem

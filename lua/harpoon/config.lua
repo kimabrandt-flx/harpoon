@@ -86,7 +86,6 @@ do
         end
 
         vim.cmd(string.format("%s %s", command, vim.fn.fnameescape(filename)))
-        return vim.fn.bufnr(filename)
     end
 end
 
@@ -167,16 +166,17 @@ function M.get_default_config()
                     }
                 end
 
-                if bufnr ~= -1 then -- switch buffer
-                    local ok, is_listed = pcall(vim.api.nvim_buf_get_option, bufnr, "buflisted")
+                if bufnr ~= -1 then
+                    local ok, is_listed = pcall(vim.api.nvim_get_option_value, "buflisted", { buf = bufnr })
                     if not ok then
                         bufnr = -1
                     elseif not is_listed then
-                        vim.api.nvim_buf_set_option(bufnr, "buflisted", true)
+                        vim.api.nvim_set_option_value("buflisted", true, {
+                            buf = bufnr,
+                        })
                     end
                 end
 
-                local abort = false
                 xpcall(function ()
                     if bufnr ~= -1 then -- edit buffer
                         edit_buffer(command, bufnr)
@@ -185,20 +185,23 @@ function M.get_default_config()
                         -- check if we didn't pick a different buffer
                         -- prevents restarting lsp server
                         if vim.api.nvim_buf_get_name(0) ~= filename or command ~= "edit" then
-                            bufnr = edit_file(command, filename)
-                            list_item.meta.bufnr = bufnr
+                            edit_file(command, filename)
+                            bufnr = vim.fn.bufnr(filename)
+                            if vim.fn.bufexists(bufnr) then
+                                list_item.meta.bufnr = bufnr
+                            else
+                                list_item.meta.bufnr = -1
+                            end
                         end
                     end
-                end, function(e)
-                        if e == "Vim(buffer):E325: ATTENTION" then -- recover or quit
-                            abort = true
-                        elseif e == "Keyboard interrupt" then -- abort
-                            abort = true
+                end, function()
+                        bufnr = vim.fn.bufnr(filename)
+                        if vim.fn.bufexists(bufnr) then
+                            list_item.meta.bufnr = bufnr
+                        else
+                            list_item.meta.bufnr = -1
                         end
-                    end, string.format("%s %d", "buffer", bufnr))
-                if abort == true then
-                    return
-                end
+                    end)
 
                 -- HACK: fixes folding: https://github.com/nvim-telescope/telescope.nvim/issues/699
                 if vim.wo.foldmethod == "expr" then
@@ -321,7 +324,7 @@ function M.get_default_config()
                         col = pos[2],
                     },
                     meta = {
-                        bufnr = bufnr,
+                        bufnr = vim.fn.bufexists(bufnr) and bufnr or nil,
                     },
                 }
             end,
